@@ -201,9 +201,9 @@ bool received_callback(String &msg, FloodingMesh &meshInstance) {
 	if (handler_index < 0)
 		return true;
 
-	if (!strcmp(frame.node_id, chip_id))
+	if (strcmp(frame.node_id, chip_id) != 0)
 		return true;
-		
+
 	char *end_ptr = nullptr;
 	float target = strtof(frame.measurement.target, &end_ptr);
 	mesh_receive_handlers[handler_index](frame.data_type, target);

@@ -1,7 +1,7 @@
 #include "data.hpp"
 #include <pgmspace.h>
 
-const char *ssid PROGMEM = "esp_mesh";
+const char *ssid PROGMEM = "esp_floodingmesh";
 const char *password PROGMEM = "123456789";
 
 const char *temp_msg PROGMEM = "Temperature is: ";
