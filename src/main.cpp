@@ -1,7 +1,4 @@
 #include <Arduino.h>
-#include <DHT.h>
-#include <Adafruit_Sensor.h>
-#include <Ticker.h>
 #include <ESP8266WiFi.h>
 #include <FloodingMesh.h>
 #include <TypeConversionFunctions.h>
@@ -15,11 +12,7 @@ uint16_t checksum(data_frame &frame);
 void decode_msg(const char *msg, data_frame &frame);
 bool validate(data_frame &frame);
 bool received_callback(String &msg, FloodingMesh &meshInstance);
-void IRAM_ATTR timer_overflow();
 
-DHT dht(DHTPIN, DHTTYPE);
-
-volatile int overflows = 0;
 volatile int temp_read = 0;
 
 float temp_target = 0.0;
@@ -29,6 +22,7 @@ float current_hum = 41.0;
 char temp_mode = TEMPERATURE_NORM_TYPE;
 char hum_mode = HUMIDITY_NORM_TYPE;
 char chip_id[NODE_ID_SIZE + 1];
+bool respond = false;
 
 extern void (*mesh_receive_handlers[6])(char type, float target);
 extern void (*measurement_handlers[6])();
@@ -55,47 +49,20 @@ void setup() {
 
 	mesh.begin();
 	mesh.activateAP();
-
-	//dht
-	timer1_attachInterrupt(timer_overflow);
-	timer1_enable(TIM_DIV16, TIM_EDGE, TIM_SINGLE);         //5MHz
-	timer1_write(OVERFLOW_LIMIT);
-
-	dht.begin();
 }
 
 void loop() {
 	floodingMeshDelay(1);
 	
-	if (!temp_read &&  overflows == 6) {
-		temp_read = 1;
-		int handler_index = get_handler_index(temp_mode);	
-		measurement_handlers[handler_index]();
+	if (respond) {
+		respond = false;
 
 		char message[MESSAGE_SIZE] = {0};
 		data_frame frame;
-		build_data_frame(frame, TEMPERATURE, current_temp);
+		build_data_frame(frame, TEMPERATURE, 10);
 		get_message(message, frame);
 		mesh.broadcast(String(message));
 	}
-
-	else if (overflows == 12) {
-		overflows = 0;
-		temp_read = 0;
-		int handler_index = get_handler_index(hum_mode);	
-		measurement_handlers[handler_index]();
-
-		char message[MESSAGE_SIZE] = {0};
-		data_frame frame;
-		build_data_frame(frame, HUMIDITY, current_hum);
-		get_message(message, frame);
-		mesh.broadcast(String(message));
-	}
-}
-
-void IRAM_ATTR timer_overflow() {
-	overflows++;
-	timer1_write(OVERFLOW_LIMIT);
 }
 
 void get_message(char *msg, data_frame &frame) {
@@ -201,7 +168,7 @@ bool received_callback(String &msg, FloodingMesh &meshInstance) {
 	if (handler_index < 0)
 		return true;
 
-	if (strcmp(frame.node_id, chip_id) != 0)
+	if (strcmp(frame.node_id, chip_id) != 0 && strcmp(frame.node_id, "0000000000") != 0)
 		return true;
 
 	char *end_ptr = nullptr;
