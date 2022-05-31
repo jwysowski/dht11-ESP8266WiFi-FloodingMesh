@@ -41,7 +41,7 @@ FloodingMesh mesh = FloodingMesh(received_callback, FPSTR(password), espnow_encr
 
 void setup() {
 	WiFi.persistent(false);
-	Serial.begin(BAUDRATE);
+	// Serial.begin(BAUDRATE);
 	sprintf(chip_id, "%u", ESP.getChipId());
 	chip_id[NODE_ID_SIZE - 2] = chip_id[0];
 	chip_id[NODE_ID_SIZE - 1] = chip_id[NODE_ID_SIZE - 3];
@@ -117,6 +117,8 @@ void build_data_frame(data_frame &frame, bool is_temp, float val) {
 	}
 
 	memcpy(frame.node_id, chip_id, NODE_ID_SIZE + 1);
+	while (strlen(frame.node_id) < 10)
+		strcat(frame.node_id, "0");
 }
 
 void decode_msg(const char *msg, data_frame &frame) {
