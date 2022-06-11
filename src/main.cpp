@@ -6,6 +6,8 @@
 #include "data.hpp"
 #include "handlers.hpp"
 
+#define INTERVAL_MS		10
+
 void build_data_frame(data_frame &frame, bool is_temp, float val);
 void get_message(char *msg, data_frame &frame);
 uint16_t checksum(data_frame &frame);
@@ -23,8 +25,6 @@ char chip_id[NODE_ID_SIZE + 1];
 bool start_test = false;
 uint16_t message_counter = 0;
 uint32_t previous_millis = 0;
-uint32_t interval_millis = 100;
-
 
 extern void (*mesh_receive_handlers[6])(char type, float target);
 extern void (*measurement_handlers[6])();
@@ -39,7 +39,7 @@ uint8_t espnow_hash_key[16] = { 0xEF, 0x44, 0x33, 0x0C, 0x33, 0x44, 0xFE, 0x44, 
 															0x33, 0x44, 0x33, 0xB0, 0x33, 0x44, 0x32, 0xAD };
 
 FloodingMesh mesh = FloodingMesh(received_callback, FPSTR(password), espnow_encrypted_connection_key,
-								espnow_hash_key, FPSTR(ssid), MeshTypeConversionFunctions::uint64ToString(ESP.getChipId()), true);;
+								espnow_hash_key, FPSTR(ssid), MeshTypeConversionFunctions::uint64ToString(ESP.getChipId()), true);
 
 void setup() {
 	WiFi.persistent(false);
@@ -57,7 +57,7 @@ void loop() {
 	floodingMeshDelay(1);
 	
 	uint32_t current_millis = millis();
-	if (start_test && current_millis - previous_millis >= interval_millis) {
+	if (start_test && current_millis - previous_millis >= INTERVAL_MS) {
 		previous_millis = current_millis;
 
 		char message[MESSAGE_SIZE] = {0};
@@ -67,7 +67,7 @@ void loop() {
 		mesh.broadcast(String(message));
 
 		message_counter++;
-		if (message_counter == 2000)
+		if (message_counter >= 2000)
 			start_test = false;
 	}
 }
@@ -124,6 +124,8 @@ void build_data_frame(data_frame &frame, bool is_temp, float val) {
 	}
 
 	memcpy(frame.node_id, chip_id, NODE_ID_SIZE + 1);
+	while (strlen(frame.node_id) < 10)
+		strcat(frame.node_id, "0");
 }
 
 void decode_msg(const char *msg, data_frame &frame) {
